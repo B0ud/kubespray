@@ -44,11 +44,11 @@ end
 $num_instances ||= 3
 $instance_name_prefix ||= "k8s"
 $vm_gui ||= false
-$vm_memory ||= 2048
+$vm_memory ||= 3072
 $vm_cpus ||= 2
 $shared_folders ||= {}
 $forwarded_ports ||= {}
-$subnet ||= "172.18.8"
+$subnet ||= "192.168.1"
 $subnet_ipv6 ||= "fd3c:b398:0698:0756"
 $os ||= "ubuntu1804"
 $network_plugin ||= "flannel"
@@ -193,9 +193,9 @@ Vagrant.configure("2") do |config|
           node.vm.synced_folder src, dst, type: "rsync", rsync__args: ['--verbose', '--archive', '--delete', '-z']
         end
       end
-
-      ip = "#{$subnet}.#{i+100}"
-      node.vm.network :private_network, ip: ip,
+      
+      ip = "#{$subnet}.#{i+100}" # bridge: "wlp2s0"
+      node.vm.network :public_network, ip: ip,
         :libvirt__guest_ipv6 => 'yes',
         :libvirt__ipv6_address => "#{$subnet_ipv6}::#{i+100}",
         :libvirt__ipv6_prefix => "64",

@@ -15,10 +15,10 @@ is_fedora_coreos: false
 disable_swap: true
 
 ## Change this to use another Kubernetes version, e.g. a current beta release
-kube_version: v1.21.1
+kube_version: v1.22.3
 
 ## The minimum version working
-kube_version_min_required: v1.19.0
+kube_version_min_required: v1.20.0
 
 ## Kube Proxy mode One of ['iptables','ipvs']
 kube_proxy_mode: ipvs
@@ -37,6 +37,12 @@ kubeadm_init_phases_skip: >-
   {%- else -%}
   {{ kubeadm_init_phases_skip_default }}
   {%- endif -%}
+
+# List of kubeadm phases that should be skipped when joining a new node
+# You may need to set this to ['preflight'] for air-gaped deployments to avoid failing connectivity tests.
+kubeadm_join_phases_skip_default: []
+kubeadm_join_phases_skip: >-
+ {{ kubeadm_join_phases_skip_default }}
 
 # A string slice of values which specify the addresses to use for NodePorts.
 # Values may be valid IP blocks (e.g. 1.2.3.0/24, 1.2.3.4/32).
@@ -89,6 +95,7 @@ dns_mode: coredns
 enable_nodelocaldns: true
 nodelocaldns_ip: 169.254.25.10
 nodelocaldns_health_port: 9254
+nodelocaldns_bind_metrics_host_ip: false
 
 # Should be set to a cluster IP if using a custom cluster DNS
 manual_dns_server: ""
@@ -120,7 +127,7 @@ enable_coredns_k8s_endpoint_pod_names: false
 # Kubernetes configuration dirs and system namespace.
 # Those are where all the additional config stuff goes
 # the kubernetes normally puts in /srv/kubernetes.
-# This puts them in a sane location and namespace.
+# This puts them in a same location and namespace.
 # Editing those values will almost surely break something.
 kube_config_dir: /etc/kubernetes
 kube_script_dir: "{{ bin_dir }}/kubernetes-scripts"
@@ -230,12 +237,26 @@ kube_api_aggregator_routing: false
 # Profiling
 kube_profiling: false
 
+# Graceful Node Shutdown
+# This requires kubernetes >= 1.21.0
+kubelet_shutdown_grace_period: 60s
+# kubelet_shutdown_grace_period_critical_pods should be less than kubelet_shutdown_grace_period
+# to give normal pods time to be gracefully evacuated
+kubelet_shutdown_grace_period_critical_pods: 20s
+
+# Whether to deploy the container engine
+deploy_container_engine: inventory_hostname in groups['k8s_cluster'] or etcd_deployment_type != 'host'
+
 # Container for runtime
 container_manager: docker
 
 # Enable Kata Containers as additional container runtime
 # When enabled, it requires `container_manager` different than Docker
 kata_containers_enabled: false
+
+# Enable gVisor as an additional container runtime
+# gVisor is only supported with container_manager Docker or containerd
+gvisor_enabled: false
 
 # Enable crun as additional container runtime
 # When enabled, it requires container_manager=crio
@@ -310,7 +331,7 @@ docker_plugins: []
 etcd_kubeadm_enabled: false
 
 # Containerd options
-containerd_version: 1.4.4
+containerd_version: 1.4.9
 containerd_use_systemd_cgroup: true
 
 # Settings for containerized control plane (etcd/kubelet/secrets)
@@ -347,11 +368,11 @@ aws_ebs_csi_enabled: false
 azure_csi_enabled: false
 gcp_pd_csi_enabled: false
 vsphere_csi_enabled: false
+csi_snapshot_controller_enabled: false
 persistent_volumes_enabled: false
 cephfs_provisioner_enabled: false
 rbd_provisioner_enabled: false
 ingress_nginx_enabled: false
-ingress_ambassador_enabled: false
 ingress_alb_enabled: false
 cert_manager_enabled: false
 expand_persistent_volumes: false
@@ -445,7 +466,7 @@ weave_password: EnterPasswordHere
 
 ssl_ca_dirs: |-
   [
-  {% if ansible_os_family in ['Flatcar Container Linux by Kinvolk'] -%}
+  {% if ansible_os_family in ['Flatcar', 'Flatcar Container Linux by Kinvolk'] -%}
   '/usr/share/ca-certificates',
   {% elif ansible_os_family == 'RedHat' -%}
   '/etc/pki/tls',

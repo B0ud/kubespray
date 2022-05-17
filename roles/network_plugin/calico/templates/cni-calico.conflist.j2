@@ -1,5 +1,5 @@
 {
-  "name": "cni0",
+  "name": "{{ calico_cni_name }}",
   "cniVersion":"0.3.1",
   "plugins":[
     {
@@ -36,6 +36,11 @@
 {%   endif %}
         "assign_ipv4": "true",
         "ipv4_pools": ["{{ calico_pool_cidr | default(kube_pods_subnet) }}"]
+      },
+{% endif %}
+{% if calico_allow_ip_forwarding %}
+      "container_settings": {
+        "allow_ip_forwarding": true
       },
 {% endif %}
 {% if (calico_feature_control is defined) and (calico_feature_control|length > 0) %}
